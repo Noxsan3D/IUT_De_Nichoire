@@ -209,26 +209,41 @@
             }
         });
 
-        // 3. Remplissage de la galerie vidéo
-        const evenements = [
-            { heure: "Aujourd'hui à 07h42", type: "Mouvement détecté (Vidéo de 2 min)", alert: true },
-            { heure: "Hier à 18h30", type: "Mouvement détecté (Vidéo de 1 min)", alert: true }
-        ];
-
+        // 3. RÉCUPÉRER LES VRAIES VIDÉOS DU SERVEUR PYTHON
         const listeEvenements = document.getElementById('liste-evenements');
-        evenements.forEach(evt => {
-            let classeAlerte = evt.alert ? "alert" : "";
-            let li = document.createElement('li');
-            li.className = `event-item ${classeAlerte}`;
-            li.innerHTML = `
-                <div>
-                    <strong style="font-size: 1.1em;">${evt.heure}</strong><br>
-                    <span style="color: #7f8c8d; font-size: 0.9em;">${evt.type}</span>
-                </div>
-                <button class="btn btn-video" onclick="alert('Téléchargement de la vidéo mp4...')">▶ Voir la vidéo</button>
-            `;
-            listeEvenements.appendChild(li);
-        });
+        listeEvenements.innerHTML = "<p style='text-align:center;'>Recherche de vidéos en cours...</p>";
+
+        fetch(`${ADRESSE_SERVEUR}/api/videos`, {
+            headers: {
+                "ngrok-skip-browser-warning": "true" 
+            }
+        })
+            .then(reponse => reponse.json())
+            .then(data => {
+                listeEvenements.innerHTML = ""; // On vide le texte de chargement
+                
+                if (data.videos.length === 0) {
+                    listeEvenements.innerHTML = "<p style='text-align:center;'>Aucune vidéo enregistrée pour le moment.</p>";
+                    return;
+                }
+
+                // Pour chaque vidéo trouvée sur le serveur
+                data.videos.forEach(video => {
+                    let li = document.createElement('li');
+                    li.className = `event-item alert`; // La classe "alert" garde la barre latérale bleue
+                    li.innerHTML = `
+                        <div>
+                            <strong style="font-size: 1.1em;">🎥 ${video}</strong><br>
+                            <span style="color: #7f8c8d; font-size: 0.9em;">Mouvement détecté</span>
+                        </div>
+                        <button class="btn btn-video" onclick="window.location.href='${ADRESSE_SERVEUR}/api/telecharger_video/${video}'">▶ Télécharger (.mp4)</button>
+                    `;
+                    listeEvenements.appendChild(li);
+                });
+            })
+            .catch(erreur => {
+                listeEvenements.innerHTML = "<p style='color:red; text-align:center;'>⚠️ Impossible de contacter le serveur vidéo.</p>";
+            });
 
         // 4. RÉCUPÉRER LES VRAIES ARCHIVES DU SERVEUR PYTHON VIA NGROK
         // Ton adresse publique générée par le tunnel Ngrok sur le Raspberry Pi
