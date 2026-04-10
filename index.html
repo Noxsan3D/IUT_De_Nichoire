@@ -296,7 +296,26 @@
         }
 
         function telechargerToutesVideos() {
-            alert("Simulation : Préparation de l'archive ZIP en cours...");
+            alert("⏳ Création de l'archive ZIP en cours sur le Raspberry Pi...\nVeuillez patienter quelques secondes.");
+            
+            fetch(`${ADRESSE_SERVEUR}/api/telecharger_toutes_videos`, {
+                headers: { "ngrok-skip-browser-warning": "69420" }
+            })
+            .then(reponse => {
+                if (!reponse.ok) throw new Error("Aucune vidéo trouvée ou erreur du serveur");
+                return reponse.blob();
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = "videos_nichoir.zip"; // Le nom de ton dossier compressé
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(err => alert("Erreur : " + err.message));
         }
     </script>
 </body>
