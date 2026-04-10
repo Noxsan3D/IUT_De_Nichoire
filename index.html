@@ -21,8 +21,6 @@
             --accent-blue: #2980b9;
             --accent-blue-hover: #3498db;
             --accent-red: #e74c3c;
-            --accent-dark: #2c3e50;
-            --accent-dark-hover: #34495e;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -89,7 +87,6 @@
         }
 
         .event-item.alert { border-left-color: var(--accent-blue); }
-        .event-item.archive { border-left-color: var(--title-color); }
 
         .btn {
             border: none;
@@ -122,33 +119,32 @@
     <p class="subtitle" id="derniere-synchro">Dernière synchronisation : --:--</p>
 
     <div class="dashboard">
-        
         <div class="card" style="text-align: center;">
             <h3 style="margin-top: 0;">Dernière Température 🌡️</h3>
             <div class="stat-valeur" id="temp-actuelle">21.5 °C</div>
-            <p class="stat-label">Relevé à 08h30</p>
+            <p class="stat-label">Donnée temps réel</p>
         </div>
 
         <div class="card" style="text-align: center;">
             <h3 style="margin-top: 0;">Niveau Batterie 🔋</h3>
             <div class="stat-valeur" id="batterie-actuelle">85 %</div>
-            <p class="stat-label">Rechargement solaire en cours ☀️</p>
+            <p class="stat-label">Rechargement solaire OK ☀️</p>
         </div>
 
         <div class="card card-large">
-            <h3 style="margin-top: 0;">Évolution de la température (Dernières 24h)</h3>
+            <h3 style="margin-top: 0;">Évolution de la température</h3>
             <canvas id="temperatureChart" height="80"></canvas>
         </div>
 
         <div class="card card-large">
             <h3 style="margin-top: 0;">Dernières Activités (Vidéos) 🦅</h3>
             <ul class="event-list" id="liste-evenements"></ul>
-            <button class="btn btn-video-large" onclick="telechargerToutesVideos()">📥 Télécharger toutes les vidéos (.ZIP)</button>
+            <button class="btn btn-video-large" onclick="alert('En cours de développement...')">📥 Télécharger toutes les vidéos (.ZIP)</button>
         </div>
 
         <div class="card card-large">
             <h3 style="margin-top: 0;">Archives Journalières (Données Capteurs) 📊</h3>
-            <p style="color: #7f8c8d; margin-top: 0;">Téléchargez les données brutes jour par jour, ou récupérez la base complète.</p>
+            <p style="color: #7f8c8d; margin-top: 0;">Téléchargez les relevés météo jour par jour.</p>
             <ul class="event-list" id="liste-archives"></ul>
             <button class="btn btn-csv-large" onclick="telechargerToutCSV()">📥 Télécharger la base de données complète</button>
         </div>
@@ -156,20 +152,20 @@
 
     <script>
         const now = new Date();
-        document.getElementById('derniere-synchro').innerText = "Dernière synchronisation : Aujourd'hui à " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        document.getElementById('derniere-synchro').innerText = "Synchronisation : " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
         const getStyle = (varName) => getComputedStyle(document.body).getPropertyValue(varName).trim();
 
         const ctx = document.getElementById('temperatureChart').getContext('2d');
-        const tempChart = new Chart(ctx, {
+        new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['05:00', '05:30', '06:00', '06:30', '07:00', '07:30', '08:00', '08:30'],
+                labels: ['05:00', '06:00', '07:00', '08:00', '09:00', '10:00'],
                 datasets: [{
                     label: 'Température (°C)',
-                    data: [12.5, 12.2, 11.8, 12.0, 13.5, 15.2, 18.0, 21.5],
+                    data: [12, 11.5, 14, 18, 21, 23],
                     borderColor: '#e67e22',
-                    backgroundColor: 'rgba(230, 126, 34, 0.2)',
+                    backgroundColor: 'rgba(230, 126, 34, 0.1)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4
@@ -179,25 +175,26 @@
                 responsive: true,
                 scales: {
                     x: { ticks: { color: getStyle('--text-color') }, grid: { color: getStyle('--grid-line-color') } },
-                    y: { beginAtZero: false, ticks: { color: getStyle('--text-color') }, grid: { color: getStyle('--grid-line-color') } }
-                },
-                plugins: { legend: { labels: { color: getStyle('--text-color') } } }
+                    y: { ticks: { color: getStyle('--text-color') }, grid: { color: getStyle('--grid-line-color') } }
+                }
             }
         });
 
+        // --- CONFIGURATION NGROK ---
         const ADRESSE_SERVEUR = "https://dislikable-cain-tawnily.ngrok-free.dev"; 
 
         const listeArchives = document.getElementById('liste-archives');
-        listeArchives.innerHTML = "<p style='text-align:center;'>Connexion au nichoir en cours...</p>";
+        listeArchives.innerHTML = "<p style='text-align:center;'>Connexion au Raspberry Pi...</p>";
 
+        // Récupérer la liste des jours
         fetch(`${ADRESSE_SERVEUR}/api/archives`, {
-            headers: { "ngrok-skip-browser-warning": "true" }
+            headers: { "ngrok-skip-browser-warning": "69420" }
         })
         .then(reponse => reponse.json())
         .then(data => {
             listeArchives.innerHTML = "";
-            if (data.archives.length === 0) {
-                listeArchives.innerHTML = "<p style='text-align:center;'>Aucune donnée enregistrée.</p>";
+            if (!data.archives || data.archives.length === 0) {
+                listeArchives.innerHTML = "<p style='text-align:center;'>Aucun fichier trouvé.</p>";
                 return;
             }
             data.archives.forEach(jour => {
@@ -205,57 +202,41 @@
                 li.className = `event-item archive`;
                 li.innerHTML = `
                     <div>
-                        <strong style="font-size: 1.1em;">Relevé du ${jour}</strong><br>
-                        <span style="color: #7f8c8d; font-size: 0.9em;">Données synchronisées</span>
+                        <strong>📅 ${jour}</strong>
                     </div>
-                    <button class="btn btn-csv" onclick="telechargerFichierServeur('${jour}')">📥 Télécharger .CSV</button>
+                    <button class="btn btn-csv" onclick="telechargerFichier('${jour}')">📥 .CSV</button>
                 `;
                 listeArchives.appendChild(li);
             });
         })
-        .catch(erreur => {
-            listeArchives.innerHTML = "<p style='color:red; text-align:center;'>⚠️ Impossible de contacter le serveur.</p>";
+        .catch(() => {
+            listeArchives.innerHTML = "<p style='color:red; text-align:center;'>⚠️ Le Raspberry Pi est hors-ligne.</p>";
         });
 
-        // --- NOUVELLE FONCTION POUR FIXER LE TÉLÉCHARGEMENT ---
-        function telechargerFichierServeur(jour) {
+        // --- FONCTION DE TÉLÉCHARGEMENT AVEC BYPASS NGROK ---
+        function telechargerFichier(jour) {
             fetch(`${ADRESSE_SERVEUR}/api/telecharger_csv/${jour}`, {
-                headers: { "ngrok-skip-browser-warning": "true" }
+                headers: { "ngrok-skip-browser-warning": "69420" }
             })
             .then(reponse => {
-                if (!reponse.ok) throw new Error("Erreur serveur");
+                if (!reponse.ok) throw new Error("Erreur de téléchargement");
                 return reponse.blob();
             })
             .then(blob => {
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
-                a.style.display = 'none';
                 a.href = url;
                 a.download = `donnees_${jour}.csv`;
                 document.body.appendChild(a);
                 a.click();
+                document.body.removeChild(a);
                 window.URL.revokeObjectURL(url);
             })
-            .catch(err => alert("Erreur lors du téléchargement : " + err.message));
+            .catch(err => alert("Erreur : " + err.message));
         }
 
         function telechargerToutCSV() {
-            let contenuCSV = "Date,Heure,Temperature_C,Humidite_%,Niveau_Batterie_%,Evenement\n";
-            contenuCSV += "09 Avril,12:00,16.0,60,95,Synchro normale\n";
-            contenuCSV += "10 Avril,14:00,17.2,55,90,Synchro normale\n";
-            const blob = new Blob([contenuCSV], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const lien = document.createElement("a");
-            lien.setAttribute("href", url);
-            lien.setAttribute("download", `base_de_donnees_complete.csv`);
-            lien.style.visibility = 'hidden';
-            document.body.appendChild(lien);
-            lien.click();
-            document.body.removeChild(lien);
-        }
-
-        function telechargerToutesVideos() {
-            alert("Simulation : Préparation de l'archive ZIP en cours...");
+            alert("Cette fonction téléchargera bientôt tous les fichiers concaténés.");
         }
     </script>
 </body>
