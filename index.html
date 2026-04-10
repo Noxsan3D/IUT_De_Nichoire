@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Le Nichoir Connecté - Historique</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        /* --- LE DESIGN (CSS) --- */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f9f4;
+            color: #2c3e50;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 { color: #27ae60; text-align: center; margin-bottom: 5px; }
+        .subtitle { color: #7f8c8d; margin-top: 0; margin-bottom: 30px; font-style: italic; }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            width: 100%;
+            max-width: 900px;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            position: relative;
+        }
+
+        .card-large { grid-column: span 2; }
+
+        /* Style pour les listes */
+        .event-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0 0 15px 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .event-item {
+            background: #ecf0f1;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 5px solid #27ae60;
+        }
+
+        .event-item.alert { border-left-color: #2980b9; }
+        .event-item.archive { border-left-color: #27ae60; }
+
+        /* Boutons d'action */
+        .btn {
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+        
+        .btn-video { background: #2980b9; color: white; }
+        .btn-video:hover { background: #3498db; }
+
+        .btn-csv { background: #27ae60; color: white; }
+        .btn-csv:hover { background: #2ecc71; }
+        
+        /* Boutons larges pour récupérer toute la base */
+        .btn-csv-large { width: 100%; font-size: 1.1em; padding: 12px; background: #27ae60; color: white;}
+        .btn-csv-large:hover { background: #2ecc71; }
+
+        .btn-video-large { width: 100%; font-size: 1.1em; padding: 12px; background: #2980b9; color: white;}
+        .btn-video-large:hover { background: #3498db; }
+
+        .stat-valeur { font-size: 2.5em; font-weight: bold; color: #27ae60; margin: 10px 0;}
+        .stat-label { color: #7f8c8d; font-size: 0.9em; margin: 0; }
+    </style>
+</head>
+<body>
+
+    <h1>🐦 Journal du Nichoir Connecté</h1>
+    <p class="subtitle" id="derniere-synchro">Dernière synchronisation : --:--</p>
+
+    <div class="dashboard">
+        
+        <div class="card" style="text-align: center;">
+            <h3 style="margin-top: 0;">Dernière Température 🌡️</h3>
+            <div class="stat-valeur" id="temp-actuelle">21.5 °C</div>
+            <p class="stat-label">Relevé à 08h30</p>
+        </div>
+
+        <div class="card" style="text-align: center;">
+            <h3 style="margin-top: 0;">Niveau Batterie 🔋</h3>
+            <div class="stat-valeur" id="batterie-actuelle">85 %</div>
+            <p class="stat-label">Rechargement solaire en cours ☀️</p>
+        </div>
+
+        <div class="card card-large">
+            <h3 style="margin-top: 0;">Évolution de la température (Dernières 24h)</h3>
+            <canvas id="temperatureChart" height="80"></canvas>
+        </div>
+
+        <div class="card card-large">
+            <h3 style="margin-top: 0;">Dernières Activités (Vidéos) 🦅</h3>
+            <ul class="event-list" id="liste-evenements">
+                </ul>
+            <button class="btn btn-video-large" onclick="telechargerToutesVideos()">📥 Télécharger toutes les vidéos (.ZIP)</button>
+        </div>
+
+        <div class="card card-large">
+            <h3 style="margin-top: 0;">Archives Journalières (Données Capteurs) 📊</h3>
+            <p style="color: #7f8c8d; margin-top: 0;">Téléchargez les données brutes (température, batterie...) jour par jour, ou récupérez la base complète.</p>
+            
+            <ul class="event-list" id="liste-archives">
+                </ul>
+            <button class="btn btn-csv-large" onclick="telechargerToutCSV()">📥 Télécharger la base de données complète</button>
+        </div>
+
+    </div>
+
+    <script>
+        // 1. Initialisation de l'heure
+        const now = new Date();
+        document.getElementById('derniere-synchro').innerText = "Dernière synchronisation : Aujourd'hui à " + now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+        // 2. Graphique Chart.js
+        const ctx = document.getElementById('temperatureChart').getContext('2d');
+        const tempChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['05:00', '05:30', '06:00', '06:30', '07:00', '07:30', '08:00', '08:30'],
+                datasets: [{
+                    label: 'Température (°C)',
+                    data: [12.5, 12.2, 11.8, 12.0, 13.5, 15.2, 18.0, 21.5],
+                    borderColor: '#e67e22',
+                    backgroundColor: 'rgba(230, 126, 34, 0.2)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: { responsive: true, scales: { y: { beginAtZero: false } } }
+        });
+
+        // 3. Remplissage de la galerie vidéo
+        const evenements = [
+            { heure: "Aujourd'hui à 07h42", type: "Mouvement détecté (Vidéo de 2 min)", alert: true },
+            { heure: "Hier à 18h30", type: "Mouvement détecté (Vidéo de 1 min)", alert: true }
+        ];
+
+        const listeEvenements = document.getElementById('liste-evenements');
+        evenements.forEach(evt => {
+            let classeAlerte = evt.alert ? "alert" : "";
+            let li = document.createElement('li');
+            li.className = `event-item ${classeAlerte}`;
+            li.innerHTML = `
+                <div>
+                    <strong style="font-size: 1.1em;">${evt.heure}</strong><br>
+                    <span style="color: #7f8c8d; font-size: 0.9em;">${evt.type}</span>
+                </div>
+                <button class="btn btn-video" onclick="alert('Téléchargement de la vidéo mp4...')">▶ Voir la vidéo</button>
+            `;
+            listeEvenements.appendChild(li);
+        });
+
+        // 4. Remplissage des Archives CSV par jour
+        const archives = [
+            { jour: "Aujourd'hui (12 Avril)", releves: 48 },
+            { jour: "Hier (11 Avril)", releves: 48 },
+            { jour: "Mardi 10 Avril", releves: 46 },
+            { jour: "Lundi 09 Avril", releves: 48 }
+        ];
+
+        const listeArchives = document.getElementById('liste-archives');
+        archives.forEach(arc => {
+            let li = document.createElement('li');
+            li.className = `event-item archive`;
+            li.innerHTML = `
+                <div>
+                    <strong style="font-size: 1.1em;">${arc.jour}</strong><br>
+                    <span style="color: #7f8c8d; font-size: 0.9em;">${arc.releves} relevés enregistrés</span>
+                </div>
+                <button class="btn btn-csv" onclick="telechargerCSVJour('${arc.jour}')">📥 .CSV</button>
+            `;
+            listeArchives.appendChild(li);
+        });
+
+        // 5. Fonction pour télécharger un jour spécifique (CSV)
+        function telechargerCSVJour(jourChoisi) {
+            let contenuCSV = "Date,Heure,Temperature_C,Humidite_%,Niveau_Batterie_%,Evenement\n";
+            contenuCSV += `${jourChoisi},07:00,13.5,65,88,Synchro normale\n`;
+            contenuCSV += `${jourChoisi},08:00,18.0,58,85,Synchro normale\n`;
+
+            const blob = new Blob([contenuCSV], { type: 'text/csv;charset=utf-8;' });
+            const lien = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            lien.setAttribute("href", url);
+            lien.setAttribute("download", `donnees_${jourChoisi.replace(/ /g, '_')}.csv`);
+            lien.style.visibility = 'hidden';
+            
+            document.body.appendChild(lien);
+            lien.click();
+            document.body.removeChild(lien);
+        }
+
+        // 6. Fonction pour télécharger TOUTE la base de données CSV
+        function telechargerToutCSV() {
+            let contenuCSV = "Date,Heure,Temperature_C,Humidite_%,Niveau_Batterie_%,Evenement\n";
+            contenuCSV += "09 Avril,12:00,16.0,60,95,Synchro normale\n";
+            contenuCSV += "10 Avril,14:00,17.2,55,90,Synchro normale\n";
+            contenuCSV += "11 Avril,08:00,14.5,70,88,Synchro normale\n";
+            contenuCSV += "12 Avril,07:00,13.5,65,88,Synchro normale\n";
+
+            const blob = new Blob([contenuCSV], { type: 'text/csv;charset=utf-8;' });
+            const lien = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            
+            lien.setAttribute("href", url);
+            lien.setAttribute("download", `base_de_donnees_complete.csv`); 
+            lien.style.visibility = 'hidden';
+            
+            document.body.appendChild(lien);
+            lien.click();
+            document.body.removeChild(lien);
+        }
+
+        // 7. NOUVELLE FONCTION : Télécharger toutes les vidéos
+        function telechargerToutesVideos() {
+            // Explication didactique pour le prototype
+            alert("Simulation : Préparation de l'archive ZIP en cours...\n\n(Dans la version finale, le Raspberry Pi regroupera toutes les vidéos .mp4 dans un fichier 'videos_nichoir.zip' pour que le navigateur n'ait qu'un seul fichier à télécharger.)");
+        }
+    </script>
+
+</body>
+</html>
