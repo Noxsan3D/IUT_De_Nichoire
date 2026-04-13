@@ -330,6 +330,41 @@
         })
         .catch(err => alert("Erreur : " + err.message));
     }
+
+    // --- 8. ACTUALISATION TEMPS RÉEL ---
+
+    function actualiserDashboard() {
+        fetch(`${ADRESSE_SERVEUR}/api/dernieres_donnees`, {
+            headers: { "ngrok-skip-browser-warning": "69" }
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.erreur) return;
+
+            // On met à jour les 3 cartes en haut
+            document.getElementById('temp-actuelle').innerText = data.temperature + " °C";
+            document.getElementById('statut-luminosite').innerText = data.jour_nuit;
+            document.getElementById('statut-oiseau').innerText = data.oiseau;
+
+            // On met à jour l'heure de la dernière synchro
+            document.getElementById('derniere-synchro').innerText = "Dernière donnée : " + data.heure;
+            
+            // Petit bonus : change la couleur de la carte oiseau si présent
+            const cardOiseau = document.getElementById('statut-oiseau').parentElement;
+            if (data.oiseau.toLowerCase().includes("oui")) {
+                cardOiseau.style.border = "2px solid #2ecc71";
+            } else {
+                cardOiseau.style.border = "none";
+            }
+        })
+        .catch(err => console.log("Le serveur ne répond pas encore..."));
+    }
+
+    // On lance la fonction immédiatement au chargement...
+    actualiserDashboard();
+    
+    // ...puis on demande de recommencer toutes les 5 secondes (5000ms)
+    setInterval(actualiserDashboard, 5000);
 </script>
 </body>
 </html>
