@@ -379,7 +379,13 @@
 
     // Appeler la fonction au démarrage et toutes les 10 secondes
     mettreAJourGraphique();
-    setInterval(mettreAJourGraphique, 10000);
+    // --- Lancement des mises à jour ---
+
+    // On actualise les cartes (Temp, Jour/Nuit, Oiseau) toutes les 1 minute (60000 ms)
+    setInterval(actualiserDashboard, 60000);
+
+    // On actualise le graphique toutes les 1 minute (60000 ms)
+    setInterval(mettreAJourGraphique, 60000);
 </script>
 </body>
 </html>
