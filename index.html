@@ -322,33 +322,18 @@
     }
 
     // --- 6. GESTION DES DONNÉES EN TEMPS RÉEL (LONG POLLING) ---
-
-    // A. Fonction pour charger les données au tout premier démarrage
+    // 1. Charge la page au démarrage
     function actualiserDashboard() {
         fetch(`${ADRESSE_SERVEUR}/api/dernieres_donnees`, {
             headers: { "ngrok-skip-browser-warning": "69" }
         })
         .then(res => res.json())
-        .then(data => {
-            if (data.erreur) return;
-
-            document.getElementById('temp-actuelle').innerText = data.temperature + " °C";
-            document.getElementById('statut-luminosite').innerText = data.jour_nuit;
-            document.getElementById('statut-oiseau').innerText = data.oiseau;
-            document.getElementById('derniere-synchro').innerText = "Dernière donnée : " + data.heure;
-            
-            const cardOiseau = document.getElementById('statut-oiseau').parentElement;
-            if (data.oiseau.toLowerCase().includes("oui")) {
-                cardOiseau.style.border = "2px solid #2ecc71";
-            } else {
-                cardOiseau.style.border = "none";
-            }
-        })
-        .catch(err => console.log("Le serveur ne répond pas encore..."));
+        .then(data => mettreAJourCartes(data))
+        .catch(err => console.log("Le serveur démarre..."));
     }
 
-    // B. Fonction d'écoute permanente (Le mode "Push")
-    function ecouterLeServeur() {
+    // 2. Vérifie s'il y a du neuf sans bloquer le système
+    function verifierNouveautes() {
         fetch(`${ADRESSE_SERVEUR}/api/ecoute_directe?t=${Date.now()}`, {
             headers: { 
                 "ngrok-skip-browser-warning": "69420",
@@ -357,29 +342,31 @@
         })
         .then(res => res.json())
         .then(data => {
+            // Si l'ESP32 a envoyé une nouvelle donnée, on met à jour !
             if (data && data.statut === "nouveau") {
-                document.getElementById('temp-actuelle').innerText = data.temperature + " °C";
-                document.getElementById('statut-luminosite').innerText = data.jour_nuit;
-                document.getElementById('statut-oiseau').innerText = data.oiseau;
-                document.getElementById('derniere-synchro').innerText = "Dernière donnée : " + data.heure;
-                
-                const cardOiseau = document.getElementById('statut-oiseau').parentElement;
-                cardOiseau.style.border = data.oiseau.toLowerCase().includes("oui") ? "2px solid #2ecc71" : "none";
+                mettreAJourCartes(data);
             }
-            
-            // On attend 2 secondes, puis on pose la question à nouveau
-            setTimeout(ecouterLeServeur, 2000); 
         })
-        .catch(err => {
-            console.error("Erreur, reconnexion dans 2s...", err);
-            setTimeout(ecouterLeServeur, 2000);
-        });
+        .catch(err => console.log("Attente réseau...")); // Reste silencieux en cas de micro-coupure
     }
 
-    // On lance le système
-    actualiserDashboard(); // Remplit la page au démarrage
-    ecouterLeServeur();    // Lance l'écoute infinie
+    // 3. Fonction qui change le texte et les couleurs
+    function mettreAJourCartes(data) {
+        if(data.erreur) return;
+        document.getElementById('temp-actuelle').innerText = data.temperature + " °C";
+        document.getElementById('statut-luminosite').innerText = data.jour_nuit;
+        document.getElementById('statut-oiseau').innerText = data.oiseau;
+        document.getElementById('derniere-synchro').innerText = "Dernière donnée : " + data.heure;
+        
+        const cardOiseau = document.getElementById('statut-oiseau').parentElement;
+        cardOiseau.style.border = data.oiseau.toLowerCase().includes("oui") ? "2px solid #2ecc71" : "none";
+    }
 
+    // Lancement propre au démarrage
+    actualiserDashboard(); 
+
+    // L'HORLOGE STRICTE : Pose la question toutes les 3 secondes (3000 ms)
+    setInterval(verifierNouveautes, 3000);
     // --- 7. ACTUALISATION DU GRAPHIQUE HISTORIQUE ---
     function mettreAJourGraphique() {
         fetch(`${ADRESSE_SERVEUR}/api/historique`, {
