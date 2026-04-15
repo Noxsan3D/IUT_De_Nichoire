@@ -349,21 +349,15 @@
 
     // B. Fonction d'écoute permanente (Le mode "Push")
     function ecouterLeServeur() {
-        // On ajoute un paramètre "t" (timestamp) pour forcer Ngrok et le navigateur
-        // à ne pas utiliser de cache (données périmées)
         fetch(`${ADRESSE_SERVEUR}/api/ecoute_directe?t=${Date.now()}`, {
             headers: { 
                 "ngrok-skip-browser-warning": "69420",
                 "Cache-Control": "no-cache" 
             }
         })
-        .then(res => {
-            if (!res.ok) throw new Error("Erreur serveur");
-            return res.json();
-        })
+        .then(res => res.json())
         .then(data => {
-            if (data && (!data.statut || data.statut !== "rien_de_neuf")) {
-                console.log("Nouvelle donnée reçue !", data);
+            if (data && data.statut === "nouveau") {
                 document.getElementById('temp-actuelle').innerText = data.temperature + " °C";
                 document.getElementById('statut-luminosite').innerText = data.jour_nuit;
                 document.getElementById('statut-oiseau').innerText = data.oiseau;
@@ -372,13 +366,13 @@
                 const cardOiseau = document.getElementById('statut-oiseau').parentElement;
                 cardOiseau.style.border = data.oiseau.toLowerCase().includes("oui") ? "2px solid #2ecc71" : "none";
             }
-            // Succès : on relance tout de suite
-            setTimeout(ecouterLeServeur, 100); 
+            
+            // On attend 2 secondes, puis on pose la question à nouveau
+            setTimeout(ecouterLeServeur, 2000); 
         })
         .catch(err => {
-            console.error("Échec de l'écoute, nouvelle tentative dans 3s...", err);
-            // Erreur : on attend un peu avant de polluer le réseau
-            setTimeout(ecouterLeServeur, 3000);
+            console.error("Erreur, reconnexion dans 2s...", err);
+            setTimeout(ecouterLeServeur, 2000);
         });
     }
 
